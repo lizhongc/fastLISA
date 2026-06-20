@@ -1,0 +1,139 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+
+%\VignetteIndexEntry{Computing LISA statistics with fastLISA}
+%\VignetteEngine{knitr::knitr}
+%\VignetteEncoding{UTF-8}
+%\VignetteDepends{spdep}
+
+\title{Computing LISA statistics with \texttt{fastLISA}}
+\author{Lizhong Chen}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+<<setup, include=FALSE>>=
+library(knitr)
+# Only evaluate code that needs spdep when it is actually installed, so the
+# vignette builds cleanly in environments where Suggests are unavailable.
+has_spdep <- requireNamespace("spdep", quietly = TRUE)
+opts_chunk$set(eval = has_spdep, echo = TRUE, fig.width = 5, fig.height = 4)
+@
+
+\section{Introduction}
+
+\texttt{fastLISA} computes Local Indicators of Spatial Association (LISA) using a
+plain-C backend with optional OpenMP multi-threading and a modern
+\texttt{xoshiro256++} random number generator for permutation inference. It
+accepts any \texttt{spdep} \texttt{listw} spatial weights object --- including
+custom and non-contiguity (e.g. distance-decay) weights --- and returns compact
+statistic-specific matrices. Cluster codes follow \texttt{rgeoda} conventions,
+including an \emph{Isolated} category for observations with no neighbours.
+
+The package exposes seven functions:
+
+\begin{itemize}
+  \item \texttt{local\_moran()} --- univariate local Moran's $I$
+  \item \texttt{local\_moran\_bv()} --- bivariate local Moran's $I$
+  \item \texttt{local\_moran\_eb()} --- Empirical-Bayes-rate local Moran's $I$
+  \item \texttt{local\_geary()} --- univariate local Geary's $C$
+  \item \texttt{local\_multigeary()} --- multivariate local Geary's $C$
+  \item \texttt{local\_g()} --- Getis-Ord local $G$
+  \item \texttt{local\_gstar()} --- Getis-Ord local $G^{*}$
+\end{itemize}
+
+All take \texttt{nsim} permutations, an optional integer seed \texttt{iseed} for
+reproducibility, a significance cutoff \texttt{p.value}, and \texttt{n.cores}
+(default \texttt{1L}; raise it to use multiple OpenMP threads).
+
+\section{A worked weights object}
+
+We use a small regular grid so the vignette runs quickly. In practice
+\texttt{listw} typically comes from \texttt{spdep::poly2nb()} on polygon data or
+\texttt{spdep::dnearneigh()} for distance-based neighbours.
+
+<<weights>>=
+library(spdep)
+library(fastLISA)
+
+nb <- cell2nb(7, 7)            # 49 cells on a 7 x 7 grid
+lw <- nb2listw(nb, style = "W")
+x  <- as.numeric(seq_len(49))  # a simple gradient
+y  <- rev(x)
+@
+
+\section{Local Moran's I}
+
+<<moran>>=
+res <- local_moran(x, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(res)
+@
+
+The result is a matrix with the observed statistic (\texttt{Ii}), a
+permutation-based $z$-score (\texttt{Z.Ii}), and the folded pseudo $p$-value
+(\texttt{Pr(folded) Sim}). Cluster classification and scatter-plot quadrants are
+attached as attributes:
+
+<<moran-attr>>=
+table(attr(res, "cluster"))
+@
+
+Setting \texttt{moments = TRUE} appends the permutation-distribution moments
+(\texttt{E.Ii}, \texttt{Var.Ii}, \texttt{Skew.Ii}, \texttt{Kurt.Ii}).
+
+\section{Bivariate and Empirical-Bayes Moran's I}
+
+<<moran-bv-eb>>=
+bv <- local_moran_bv(x, y, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(bv)
+
+event <- as.numeric(seq_len(49))
+base  <- rep(100, 49)
+eb <- local_moran_eb(event, base, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(eb)
+@
+
+\section{Local Geary's C (univariate and multivariate)}
+
+<<geary>>=
+c_uni <- local_geary(x, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(c_uni)
+
+c_multi <- local_multigeary(cbind(x, y), lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(c_multi)
+@
+
+\section{Getis-Ord G and G*}
+
+<<getis>>=
+g  <- local_g(x, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+gs <- local_gstar(x, lw, nsim = 199L, iseed = 1L, n.cores = 1L)
+head(g)
+head(gs)
+@
+
+\section{Notes on conventions}
+
+\begin{itemize}
+  \item \textbf{Standardisation.} Variables are standardised with the
+    \emph{sample} standard deviation ($n-1$ denominator) before the statistic is
+    computed where the function exposes a \texttt{scale} argument. Spatial
+    weight values are row-standardised internally.
+  \item \textbf{P-values.} Moran, G, and G* statistics use the
+    \texttt{rgeoda}-style folded form
+    $p = (\min(\#\{perm \ge obs\}, \#\{perm < obs\}) + 1) / (nsim + 1)$.
+    Geary statistics use the tail selected by the observed statistic relative
+    to its permutation mean.
+  \item \textbf{Isolates.} Observations with no neighbours are assigned the
+    \emph{Isolated} cluster code regardless of the significance cutoff.
+  \item \textbf{Reproducibility.} Supplying \texttt{iseed} with
+    \texttt{n.cores = 1L} makes permutation inference reproducible. Dynamic
+    scheduling means multi-core permutation results may differ between runs.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,26 @@
+# Use R's built-in OpenMP flag variables so the build works on all platforms.
+# On macOS with Apple Clang, SHLIB_OPENMP_CFLAGS may be empty unless libomp
+# is installed; the code degrades gracefully to single-threaded in that case.
+PKG_CFLAGS  = $(SHLIB_OPENMP_CFLAGS)
+PKG_LIBS    = $(SHLIB_OPENMP_CFLAGS)
+
+# Explicit source list.
+# Shared utilities:
+#   rng.c               – xoshiro256++ RNG
+#   workspace.c         – per-thread permutation workspace (single allocation)
+# Pure-C computation kernels (no SEXP):
+#   bimoran.c
+#   localgeary.c
+#   localmultigeary.c
+#   localg.c
+#   localgstar.c
+# Thin SEXP wrappers (call the compute_* functions), all in one file:
+#   R_export.c
+# Registration:
+#   init.c
+SOURCES = rng.c workspace.c \
+          bimoran.c localgeary.c localmultigeary.c \
+          localg.c localgstar.c \
+          R_export.c \
+          init.c
+OBJECTS = $(SOURCES:.c=.o)

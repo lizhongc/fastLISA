@@ -1,0 +1,16 @@
+fastLISA contains statistical kernels adapted from the GeoDa/libgeoda project.
+
+GeoDa/libgeoda
+Copyright (C) 2011-2015 Luc Anselin
+Copyright (C) GeoDa contributors
+License: GNU General Public License version 3 or later
+Source: https://github.com/GeoDaCenter/geoda
+
+The adapted conventions cover Local Moran, bivariate Local Moran, Empirical
+Bayes Local Moran, Local Geary, multivariate Local Geary, Local G, Local G*,
+conditional permutation tails, and cluster classifications. The fastLISA
+implementations are written in C for the package's CSR and OpenMP backend.
+
+The xoshiro256++ and SplitMix64 random-number generators are adapted from the
+public-domain reference implementations by David Blackman and Sebastiano Vigna:
+https://prng.di.unimi.it/
