@@ -6,7 +6,7 @@
 \hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
 
 %\VignetteIndexEntry{Computing LISA statistics with fastLISA}
-%\VignetteEngine{knitr::knitr}
+%\VignetteEngine{utils::Sweave}
 %\VignetteEncoding{UTF-8}
 %\VignetteDepends{spdep}
 
@@ -16,14 +16,6 @@
 
 \begin{document}
 \maketitle
-
-<<setup, include=FALSE>>=
-library(knitr)
-# Only evaluate code that needs spdep when it is actually installed, so the
-# vignette builds cleanly in environments where Suggests are unavailable.
-has_spdep <- requireNamespace("spdep", quietly = TRUE)
-opts_chunk$set(eval = has_spdep, echo = TRUE, fig.width = 5, fig.height = 4)
-@
 
 \section{Introduction}
 
