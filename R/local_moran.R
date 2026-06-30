@@ -24,7 +24,8 @@ local_moran <- function(x, listw,
                         iseed   = NULL,
                         p.value = 0.05,
                         n.cores = 1L,
-                        moments = FALSE) 
+                        moments = FALSE,
+                        p.method = c("count", "rank"))
 {
   # Univariate Local Moran's I on standardised variable x is mathematically equivalent
   # to Bivariate Local Moran's I with x = y and scale = TRUE.
@@ -34,7 +35,8 @@ local_moran <- function(x, listw,
                           iseed = iseed,
                           p.value = p.value,
                           n.cores = n.cores,
-                          moments = moments)
+                          moments = moments,
+                          p.method = match.arg(p.method))
 
   res_mat <- unclass(res_bv)
   colnames(res_mat)[1:2] <- c("Ii", "Z.Ii")

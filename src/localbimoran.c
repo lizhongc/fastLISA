@@ -1,4 +1,4 @@
-/* bimoran.c
+/* localbimoran.c
  *
  * Pure-C computation kernels for bivariate Local Moran's I.
  * No SEXP types are used here; all data is passed as plain C arrays.
@@ -31,11 +31,13 @@
  * ------------------------------------------------------------------ */
 void compute_bimoran(int n, const int *row_ptr, const int *col_idx, const double *weights, const double *z1, const double *z2, const int *undef, double *bimoran_out, double *splag_out, int *cluster_out, int n_threads)
 {
-#ifdef _OPENMP
+    #ifdef _OPENMP
     #pragma omp parallel for schedule(static) num_threads(n_threads)
-#endif
-    for (int i = 0; i < n; i++) {
-        if (undef[i]) {
+    #endif
+    for (int i = 0; i < n; i++)
+    {
+        if (undef[i])
+        {
             bimoran_out[i] = 0.0;
             splag_out[i]   = 0.0;
             cluster_out[i] = CLUSTER_UNDEFINED;
@@ -45,7 +47,8 @@ void compute_bimoran(int n, const int *row_ptr, const int *col_idx, const double
         int start = row_ptr[i];
         int end   = row_ptr[i + 1];
 
-        if (start == end) {
+        if (start == end)
+        {
             bimoran_out[i] = 0.0;
             splag_out[i]   = 0.0;
             cluster_out[i] = CLUSTER_ISOLATED;
@@ -54,9 +57,11 @@ void compute_bimoran(int n, const int *row_ptr, const int *col_idx, const double
 
         double lag   = 0.0;
         double w_sum = 0.0;
-        for (int k = start; k < end; k++) {
+        for (int k = start; k < end; k++)
+        {
             int j = col_idx[k];
-            if (j != i && !undef[j]) {
+            if (j != i && !undef[j])
+            {
                 lag   += weights[k] * z2[j];
                 w_sum += weights[k];
             }
@@ -113,11 +118,12 @@ void compute_bimoran(int n, const int *row_ptr, const int *col_idx, const double
  * Output (caller-allocated, length n):
  *   pval_out    - pseudo p-values (NaN for undefined/isolated)
  * ------------------------------------------------------------------ */
-void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, const double *weights, const double *z1, const double *z2, const int *undef, const double *bimoran_obs, int permutations, uint64_t base_seed, int n_threads, double *pval_out, double *mean_out, double *var_out, double *skew_out, double *kurt_out)
+void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, const double *weights, const double *z1, const double *z2, const int *undef, const double *bimoran_obs, int permutations, uint64_t base_seed, int n_threads, int rank_pval, double *pval_out, double *mean_out, double *var_out, double *skew_out, double *kurt_out)
 {
     int *pool      = R_Calloc(n, int);
     int  pool_size = 0;
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         if (!undef[i])
             pool[pool_size++] = i;
     }
@@ -130,26 +136,29 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
 
     int alloc_failed = 0;
 
-#ifdef _OPENMP
+    #ifdef _OPENMP
     #pragma omp parallel num_threads(n_threads)
-#endif
+    #endif
     {
         perm_ws ws;
-        if (perm_ws_alloc(&ws, n, permutations) != 0) {
-#ifdef _OPENMP
+        if (perm_ws_alloc(&ws, n, permutations) != 0)
+        {
+            #ifdef _OPENMP
             #pragma omp atomic write
-#endif
+            #endif
             alloc_failed = 1;
         }
 
-#ifdef _OPENMP
+        #ifdef _OPENMP
         #pragma omp barrier
         #pragma omp for schedule(dynamic, 8)
-#endif
-        for (int i = 0; i < n; i++) {
+        #endif
+        for (int i = 0; i < n; i++)
+        {
             if (alloc_failed)
                 continue;
-            if (undef[i]) {
+            if (undef[i])
+            {
                 pval_out[i] = R_NaN;
                 mean_out[i] = R_NaN;
                 var_out[i]  = R_NaN;
@@ -166,22 +175,26 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
             rng_state[1] = splitmix64(&sm_state);
             rng_state[2] = splitmix64(&sm_state);
             rng_state[3] = splitmix64(&sm_state);
-            if (rng_state[0] == 0 && rng_state[1] == 0 && rng_state[2] == 0 && rng_state[3] == 0) {
+            if (rng_state[0] == 0 && rng_state[1] == 0 && rng_state[2] == 0 && rng_state[3] == 0)
+            {
                 rng_state[0] = 1ULL;
             }
 
             /* Collect valid neighbours: count and weights in a single pass. */
             double w_sum = 0.0;
             int    nn    = 0;
-            for (int k = row_ptr[i]; k < row_ptr[i + 1]; k++) {
+            for (int k = row_ptr[i]; k < row_ptr[i + 1]; k++)
+            {
                 int j = col_idx[k];
-                if (j != i && !undef[j]) {
+                if (j != i && !undef[j])
+                {
                     ws.w_valid[nn] = weights[k];
                     w_sum         += weights[k];
                     nn++;
                 }
             }
-            if (nn == 0) {
+            if (nn == 0)
+            {
                 pval_out[i] = R_NaN;
                 mean_out[i] = R_NaN;
                 var_out[i]  = R_NaN;
@@ -191,19 +204,23 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
             }
 
             int local_size = 0;
-            for (int p = 0; p < pool_size; p++) {
+            for (int p = 0; p < pool_size; p++)
+            {
                 if (pool[p] != i)
                     ws.draw[local_size++] = pool[p];
             }
 
             double   sum      = 0.0;
             uint64_t count_ge = 0;
+            uint64_t count_eq = 0;
 
             // Step 4a: Run the permutation trials
-            for (int perm = 0; perm < permutations; perm++) {
+            for (int perm = 0; perm < permutations; perm++)
+            {
                 // Fisher-Yates shuffle: select a random subset of neighbors from the pool
                 // of valid non-focal observations.
-                for (int k = 0; k < nn; k++) {
+                for (int k = 0; k < nn; k++)
+                {
                     int idx = k + rng_int(rng_state, local_size - k);
                     int tmp = ws.draw[k];
                     ws.draw[k]   = ws.draw[idx];
@@ -212,7 +229,8 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
 
                 // Compute the spatial lag of variable z2 over the permuted neighbors
                 double perm_lag = 0.0;
-                for (int k = 0; k < nn; k++) {
+                for (int k = 0; k < nn; k++)
+                {
                     perm_lag += ws.w_valid[k] * z2[ws.draw[k]];
                 }
                 if (w_sum > 0.0)
@@ -224,14 +242,28 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
                 sum += val;
                 if (val >= bimoran_obs[i])
                     count_ge++;
+                if (val == bimoran_obs[i])
+                    count_eq++;
             }
 
             // rgeoda folded pseudo-p: smaller tail, without doubling.
             uint64_t count_folded = count_ge;
-            if ((uint64_t)permutations - count_ge < count_folded) {
+            if ((uint64_t)permutations - count_ge < count_folded)
+            {
                 count_folded = (uint64_t)permutations - count_ge;
             }
-            pval_out[i] = ((double)count_folded + 1.0) / ((double)permutations + 1.0);
+            double p_count = ((double)count_folded + 1.0) / ((double)permutations + 1.0);
+
+            // spdep rank-based folded pseudo-p: averaged rank of the observed value
+            // among the nsim+1 values, mapped to the smaller tail (no doubling).
+            uint64_t n_less = (uint64_t)permutations - count_ge;
+            double xrank = (double)n_less + ((double)count_eq + 2.0) / 2.0;
+            int    ri    = (int)xrank;
+            double gr    = (double)ri / ((double)permutations + 1.0);
+            double ls    = ((double)permutations + 2.0 - (double)ri) / ((double)permutations + 1.0);
+            double p_rank = fmin(gr, ls);
+
+            pval_out[i] = rank_pval ? p_rank : p_count;
 
             // Step 4c: Compute empirical moments of the permutation distribution
             // (Used by R wrapper to build expectation, variance, Z-score, and analytical p-values).
@@ -240,7 +272,8 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
             double sum2 = 0.0;
             double sum3 = 0.0;
             double sum4 = 0.0;
-            for (int k = 0; k < permutations; k++) {
+            for (int k = 0; k < permutations; k++)
+            {
                 double diff = ws.perm_vals[k] - mean;
                 sum2 += diff * diff;
                 sum3 += diff * diff * diff;
@@ -254,7 +287,8 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
 
             double skew = 0.0;
             double kurt = 0.0;
-            if (m2 > 0.0) {
+            if (m2 > 0.0)
+            {
                 // Adjust skewness and kurtosis to match R's e1071 (type 3) standard:
                 skew = (m3 / (m2 * sqrt(m2))) * skew_corr;
                 kurt = (m4 / (m2 * m2)) * kurt_corr - 3.0;
@@ -271,7 +305,8 @@ void compute_bimoran_pvalues(int n, const int *row_ptr, const int *col_idx, cons
 
     R_Free(pool);
 
-    if (alloc_failed) {
+    if (alloc_failed)
+    {
         error("Memory allocation failed in OpenMP parallel region.");
     }
 }

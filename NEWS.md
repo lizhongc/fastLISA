@@ -16,9 +16,12 @@
   permutation-moment columns.
 * Folded pseudo-p-values are returned for Moran, G, and G* statistics;
   Geary statistics return tail-adaptive pseudo-p-values.
+* `p.method` selects the permutation pseudo-p-value method: `"count"` (default)
+  counts permutations at least as extreme as the observed value, while `"rank"`
+  uses `spdep`'s ties-averaged rank. Both return a folded (smaller-tail) value.
 * Cluster codes follow `rgeoda` conventions, including an `Isolated` category
   for observations with no neighbours.
 * `n.cores` defaults to `1L`; raise it to use multiple OpenMP threads.
 * The permutation RNG is re-seeded per observation, so for a fixed `iseed` the
   pseudo-p-values are identical for any `n.cores` (verified in
-  `tests/testthat/test-multicore-reproducible.R`).
+  `tests/multicore-reproducible.R`).

@@ -52,7 +52,14 @@ including an `Isolated` category for observations with no neighbours.
 
 ## Installation
 
-From source (requires a C99 compiler; OpenMP is used when available):
+Install the released version from CRAN:
+
+```r
+install.packages("fastLISA")
+```
+
+Or the development version from source (requires a C99 compiler; OpenMP is used
+when available):
 
 ```r
 # install.packages("remotes")
@@ -94,8 +101,10 @@ res_exp <- local_g(x, lw_exp, nsim = 999L, iseed = 1L)
 ```
 
 All functions share the same interface: `nsim` permutations, an optional integer
-`iseed` for reproducibility, a significance cutoff `p.value`, and `n.cores`
-(default `1L`; raise it to use multiple OpenMP threads).
+`iseed` for reproducibility, a significance cutoff `p.value`, `n.cores`
+(default `1L`; raise it to use multiple OpenMP threads), and `p.method` to choose
+the pseudo-p-value method — `"count"` (default) or `spdep`'s ties-averaged
+`"rank"`.
 
 ## Reproducibility
 
@@ -113,8 +122,11 @@ which stores the `n.cores` value you passed.)
 
 ## Documentation
 
-* Vignette: `vignette("fastLISA")` — a worked example for every statistic.
-* Help pages: `?local_moran`, `?local_g`, etc.
+See the package help (`?local_moran`, `?local_g`, `?local_geary`, ...) and the package vignette:
+
+```r
+vignette("fastLISA")
+```
 
 ## References
 
@@ -130,4 +142,4 @@ which stores the `n.cores` value you passed.)
 
 ## License
 
-GPL-3. Maintainer: Lizhong Chen (<chen.l@wehi.edu.au>).
+GPL-3. 

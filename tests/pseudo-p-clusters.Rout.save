@@ -1,0 +1,264 @@
+
+R version 4.6.0 (2026-04-24) -- "Because it was There"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ## Integration tests for output structure, clustering, moments, scaling and the
+> ## Undefined/Isolated edge cases.  Self-contained (no spdep): small
+> ## row-standardised listw objects (grid and a custom one with an isolate) are
+> ## built by hand.  Internal helpers are reached with the ::: operator.
+> 
+> library(fastLISA)
+> 
+> grid_nb <- function(nr, nc) {
++   idx <- function(r, c) (r - 1L) * nc + c
++   nb  <- vector("list", nr * nc)
++   for (r in seq_len(nr)) for (cc in seq_len(nc)) {
++     nbrs <- integer(0)
++     if (r > 1L)  nbrs <- c(nbrs, idx(r - 1L, cc))
++     if (r < nr)  nbrs <- c(nbrs, idx(r + 1L, cc))
++     if (cc > 1L) nbrs <- c(nbrs, idx(r, cc - 1L))
++     if (cc < nc) nbrs <- c(nbrs, idx(r, cc + 1L))
++     nb[[idx(r, cc)]] <- sort(as.integer(nbrs))
++   }
++   nb
++ }
+> 
+> ## Row-standardised weights (style "W"); an isolate is encoded as the spdep 0L
+> ## neighbour and given a placeholder weight that .listw2csr discards.
+> make_listw <- function(nb) {
++   w <- lapply(nb, function(z)
++     if (length(z) == 1L && z[1] == 0L) 0 else rep(1 / length(z), length(z)))
++   structure(list(style = "W", neighbours = nb, weights = w), class = "listw")
++ }
+> 
+> make_grid_listw <- function(nr, nc) make_listw(grid_nb(nr, nc))
+> 
+> eq    <- function(a, b, tol = 1e-12) stopifnot(isTRUE(all.equal(a, b, tolerance = tol)))
+> ident <- function(a, b) stopifnot(identical(a, b))
+> is_err <- function(expr) stopifnot(inherits(try(expr, silent = TRUE), "try-error"))
+> 
+> ## --- public LISA APIs expose renamed arguments and pseudo-p values -----------
+> lw <- make_grid_listw(3, 3)
+> x  <- seq_len(9)
+> y  <- rev(x)
+> 
+> functions <- list(local_moran_bv, local_moran, local_moran_eb, local_g,
++                   local_gstar, local_geary, local_multigeary)
+> for (fun in functions) {
++   args <- names(formals(fun))
++   stopifnot(all(c("p.value", "n.cores") %in% args))
++   stopifnot(!any(c("alternative", "significance_cutoff", "cpu_threads") %in% args))
++ }
+> 
+> bv <- local_moran_bv(x, y, lw, nsim = 19, n.cores = 1)
+> ident(colnames(bv), c("Ibvi", "Z.Ibvi", "Pr(folded) Sim"))
+> stopifnot(all(bv[, "Pr(folded) Sim"] <= 0.5, na.rm = TRUE))
+> ident(colnames(local_moran(x, lw, nsim = 19, n.cores = 1)), c("Ii", "Z.Ii", "Pr(folded) Sim"))
+> ident(colnames(local_moran_eb(x, x + 20, lw, nsim = 19, n.cores = 1)), c("Ii", "Z.Ii", "Pr(folded) Sim"))
+> ident(colnames(local_g(x, lw, nsim = 19, n.cores = 1)), c("Gi", "Z.Gi", "Pr(folded) Sim"))
+> ident(colnames(local_gstar(x, lw, nsim = 19, n.cores = 1)), c("G*i", "Z.G*i", "Pr(folded) Sim"))
+> ident(colnames(local_geary(x, lw, nsim = 19, n.cores = 1)), c("Ci", "Z.Ci", "Pr Sim"))
+> ident(colnames(local_multigeary(cbind(x, y), lw, nsim = 19, n.cores = 1)), c("Ci", "Z.Ci", "Pr Sim"))
+> is_err(local_moran(x, lw, significance_cutoff = 0.05))
+> is_err(local_moran(x, lw, cpu_threads = 1))
+> 
+> ## --- CSR conversion helper is internal ---------------------------------------
+> csr <- fastLISA:::.listw2csr(lw)
+> ident(names(csr), c("row_ptr", "col_idx", "weights"))
+> stopifnot(!exists("listw2csr", envir = asNamespace("fastLISA"), inherits = FALSE))
+> stopifnot(!("listw2csr" %in% getNamespaceExports("fastLISA")))
+> 
+> ## --- remaining LISA outputs use optional matrix moment columns ---------------
+> for (fun in list(local_g, local_gstar, local_geary, local_multigeary))
++   ident(formals(fun)$moments, FALSE)
+> 
+> functions <- list(
++   G          = function(m) local_g(x, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m),
++   Gstar      = function(m) local_gstar(x, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m),
++   Geary      = function(m) local_geary(x, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m),
++   Multigeary = function(m) local_multigeary(cbind(x, y), lw, nsim = 19, iseed = 7,
++                                             n.cores = 1, moments = m)
++ )
+> expected <- list(
++   G          = c("Gi", "Z.Gi", "Pr(folded) Sim", "E.Gi", "Var.Gi", "Skew.Gi", "Kurt.Gi"),
++   Gstar      = c("G*i", "Z.G*i", "Pr(folded) Sim", "E.G*i", "Var.G*i", "Skew.G*i", "Kurt.G*i"),
++   Geary      = c("Ci", "Z.Ci", "Pr Sim", "E.Ci", "Var.Ci", "Skew.Ci", "Kurt.Ci"),
++   Multigeary = c("Ci", "Z.Ci", "Pr Sim", "E.Ci", "Var.Ci", "Skew.Ci", "Kurt.Ci")
++ )
+> for (name in names(functions)) {
++   compact  <- functions[[name]](FALSE)
++   expanded <- functions[[name]](TRUE)
++   ident(colnames(expanded), expected[[name]])
++   eq(c(expanded[, 1:3]), c(compact))
++   ident(attr(expanded, "cluster"), attr(compact, "cluster"))
++   ident(class(compact),
++         c(if (name %in% c("G", "Gstar")) "localG" else "localC", "matrix", "array"))
++   eq(expanded[, 2], (expanded[, 1] - expanded[, 4]) / sqrt(expanded[, 5]))
++   stopifnot(!any(c("internals", "pseudo-p", "mean", "var", "skew", "kurt") %in%
++                  names(attributes(compact))))
++ }
+> ident(attr(functions$G(FALSE), "gstari"), FALSE)
+> ident(attr(functions$Gstar(FALSE), "gstari"), TRUE)
+> 
+> ## --- Moran moment columns are optional and statistic-specific ----------------
+> for (fun in list(local_moran_bv, local_moran, local_moran_eb)) {
++   ident(formals(fun)$moments, FALSE)
++   stopifnot(!("empirical.dist" %in% names(formals(fun))))
++ }
+> functions <- list(
++   Bivariate = function(m) local_moran_bv(x, y, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m),
++   Moran     = function(m) local_moran(x, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m),
++   EB        = function(m) local_moran_eb(x, x + 20, lw, nsim = 19, iseed = 7, n.cores = 1, moments = m)
++ )
+> for (fun in functions) {
++   compact  <- fun(FALSE)
++   expanded <- fun(TRUE)
++   stopifnot(ncol(compact) == 3L)
++   ident(dim(expanded[, 1:3]), dim(compact))
++   eq(c(expanded[, 1:3]), c(compact))
++   ident(attr(expanded, "cluster"), attr(compact, "cluster"))
++   ident(attr(expanded, "quadr"), attr(compact, "quadr"))
++ }
+> ident(colnames(functions$Bivariate(TRUE)),
++       c("Ibvi", "Z.Ibvi", "Pr(folded) Sim", "E.Ibvi", "Var.Ibvi", "Skew.Ibvi", "Kurt.Ibvi"))
+> ident(colnames(functions$Moran(TRUE)),
++       c("Ii", "Z.Ii", "Pr(folded) Sim", "E.Ii", "Var.Ii", "Skew.Ii", "Kurt.Ii"))
+> ident(colnames(functions$EB(TRUE)),
++       c("Ii", "Z.Ii", "Pr(folded) Sim", "E.Ii", "Var.Ii", "Skew.Ii", "Kurt.Ii"))
+> stopifnot(!("cluster" %in% colnames(functions$EB(FALSE))))
+> 
+> moran    <- functions$Moran(TRUE)
+> moran_bv <- local_moran_bv(x, x, lw, nsim = 19, iseed = 7, n.cores = 1, moments = TRUE)
+> eq(c(moran[, 4:7]), c(moran_bv[, 4:7]))
+> 
+> eb    <- fastLISA:::.rate_standardize_eb(x, x + 20)
+> eb_bv <- local_moran_bv(eb$results, eb$results, lw, nsim = 19, iseed = 7,
++                         n.cores = 1, moments = TRUE)
+> eq(c(functions$EB(TRUE)[, 4:7]), c(eb_bv[, 4:7]))
+> 
+> is_err(local_moran_bv(x, y, lw, empirical.dist = TRUE))
+> is_err(local_moran(x, lw, empirical.dist = TRUE))
+> is_err(local_moran_eb(x, x + 20, lw, empirical.dist = TRUE))
+> 
+> ## --- Moran moments preserve undefined and isolated rows ----------------------
+> nb <- list(c(2L, 4L), 1L, 0L, 1L)   # region 3 isolated, region 2 will be NA
+> lw4 <- make_listw(nb)
+> xu  <- c(1, NA, 3, 4)
+> res <- local_moran(xu, lw4, nsim = 9, n.cores = 1, moments = TRUE)
+> stopifnot(all(is.na(res[2:3, c("Z.Ii", "Pr(folded) Sim",
++                                "E.Ii", "Var.Ii", "Skew.Ii", "Kurt.Ii")])))
+> ident(as.character(attr(res, "cluster"))[2:3], c("Undefined", "Isolated"))
+> 
+> ## --- significance cutoff filters C-computed clusters -------------------------
+> functions <- list(
++   function(cut) local_moran_bv(x, y, lw, nsim = 19, p.value = cut, n.cores = 1),
++   function(cut) local_g(x, lw, nsim = 19, p.value = cut, n.cores = 1),
++   function(cut) local_gstar(x, lw, nsim = 19, p.value = cut, n.cores = 1),
++   function(cut) local_geary(x, lw, nsim = 19, p.value = cut, n.cores = 1),
++   function(cut) local_multigeary(cbind(x, y), lw, nsim = 19, p.value = cut, n.cores = 1)
++ )
+> for (fun in functions) {
++   stopifnot(all(as.character(attr(fun(0), "cluster")) == "Not significant"))
++   stopifnot(any(as.character(attr(fun(1), "cluster")) != "Not significant"))
++ }
+> 
+> ## --- G and Gstar never manufacture isolated clusters -------------------------
+> for (i in seq_len(200)) {
++   g  <- local_g(x, lw, nsim = 9, p.value = 0, n.cores = 1)
++   gs <- local_gstar(x, lw, nsim = 9, p.value = 0, n.cores = 1)
++   stopifnot(all(as.character(attr(g,  "cluster")) == "Not significant"))
++   stopifnot(all(as.character(attr(gs, "cluster")) == "Not significant"))
++ }
+> 
+> ## --- single-core seeded results are reproducible -----------------------------
+> lw16 <- make_grid_listw(4, 4)
+> x16  <- seq_len(16)
+> y16  <- rev(x16)
+> functions <- list(
++   function() local_moran(x16, lw16, nsim = 19, iseed = 7, n.cores = 1),
++   function() local_moran_bv(x16, y16, lw16, nsim = 19, iseed = 7, n.cores = 1),
++   function() local_g(x16, lw16, nsim = 19, iseed = 7, n.cores = 1),
++   function() local_gstar(x16, lw16, nsim = 19, iseed = 7, n.cores = 1),
++   function() local_geary(x16, lw16, nsim = 19, iseed = 7, n.cores = 1),
++   function() local_multigeary(cbind(x16, y16), lw16, nsim = 19, iseed = 7, n.cores = 1)
++ )
+> for (fun in functions) stopifnot(identical(fun(), fun()))
+> 
+> ## --- R-level scaling matches manually prepared data --------------------------
+> xx    <- c(1:4, NA, 6:9)
+> yy    <- c(9:3, NA, 1)
+> valid <- !is.na(xx) & !is.na(yy)
+> xs <- xx; ys <- yy
+> xs[valid] <- as.numeric(scale(xx[valid]))
+> ys[valid] <- as.numeric(scale(yy[valid]))
+> 
+> bv_scaled <- local_moran_bv(xx, yy, lw, nsim = 19, iseed = 7, n.cores = 1)
+> bv_manual <- local_moran_bv(xs, ys, lw, nsim = 19, scale = FALSE, iseed = 7, n.cores = 1)
+> eq(c(bv_scaled), c(bv_manual))
+> ident(attr(bv_scaled, "cluster"), attr(bv_manual, "cluster"))
+> 
+> gx     <- c(1:4, NA, 6:9)
+> gvalid <- !is.na(gx)
+> gxs    <- gx
+> gxs[gvalid] <- as.numeric(scale(gx[gvalid]))
+> geary_scaled <- local_geary(gx, lw, nsim = 19, iseed = 7, n.cores = 1)
+> geary_manual <- local_geary(gxs, lw, nsim = 19, scale = FALSE, iseed = 7, n.cores = 1)
+> eq(c(geary_scaled), c(geary_manual))
+> ident(attr(geary_scaled, "cluster"), attr(geary_manual, "cluster"))
+> 
+> mg_scaled <- local_multigeary(cbind(xx, yy), lw, nsim = 19, iseed = 7, n.cores = 1)
+> mg_manual <- local_multigeary(cbind(xs, ys), lw, nsim = 19, scale = FALSE, iseed = 7, n.cores = 1)
+> eq(c(mg_scaled), c(mg_manual))
+> ident(attr(mg_scaled, "cluster"), attr(mg_manual, "cluster"))
+> 
+> ## --- scale = FALSE passes unstandardised values to C -------------------------
+> xv <- seq(10, 90, by = 10)
+> yv <- seq(2, 18, by = 2)
+> bv <- local_moran_bv(xv, yv, lw, nsim = 9, scale = FALSE, n.cores = 1)
+> eq(unname(bv[, "Ibvi"]), unname(xv * fastLISA:::.listw_lag(yv, lw)))
+> stopifnot(!isTRUE(all.equal(
++   bv[, "Ibvi"],
++   local_moran_bv(xv, yv, lw, nsim = 9, scale = TRUE, n.cores = 1)[, "Ibvi"]
++ )))
+> geary <- local_geary(xv, lw, nsim = 9, scale = FALSE, n.cores = 1)
+> expected_geary <- vapply(seq_along(xv), function(i)
++   sum(lw$weights[[i]] * (xv[i] - xv[lw$neighbours[[i]]])^2), numeric(1))
+> eq(unname(geary[, "Ci"]), expected_geary)
+> 
+> ## --- Undefined and Isolated cluster labels are preserved ---------------------
+> res <- local_geary(xu, lw4, nsim = 9, p.value = 0, n.cores = 1)
+> ident(as.character(attr(res, "cluster"))[2:3], c("Undefined", "Isolated"))
+> 
+> expanded <- local_geary(xu, lw4, nsim = 9, p.value = 0, n.cores = 1, moments = TRUE)
+> stopifnot(all(is.na(expanded[2:3, c("Z.Ci", "Pr Sim", "E.Ci", "Var.Ci",
++                                     "Skew.Ci", "Kurt.Ci")])))
+> 
+> remaining <- list(
++   local_g(xu, lw4, nsim = 9, n.cores = 1, moments = TRUE),
++   local_gstar(xu, lw4, nsim = 9, n.cores = 1, moments = TRUE),
++   local_multigeary(cbind(xu, xu * 2), lw4, nsim = 9, n.cores = 1, moments = TRUE)
++ )
+> for (result in remaining) {
++   stopifnot(all(is.na(result[2:3, 2:7])))
++   ident(as.character(attr(result, "cluster"))[2:3], c("Undefined", "Isolated"))
++ }
+> 
+> cat("pseudo-p-clusters: OK\n")
+pseudo-p-clusters: OK
+> 
+> proc.time()
+   user  system elapsed 
+  0.211   0.026   0.232 

@@ -9,7 +9,8 @@ local_g(
   iseed = NULL,
   p.value = 0.05,
   n.cores = 1L,
-  moments = FALSE
+  moments = FALSE,
+  p.method = c("count", "rank")
 )
 }
 \arguments{
@@ -29,6 +30,11 @@ set higher to use multiple cores. Ignored on platforms without OpenMP.}
 \item{moments}{Logical; if \code{TRUE}, append permutation-distribution
 moments \code{E.Gi}, \code{Var.Gi}, \code{Skew.Gi}, and \code{Kurt.Gi}.
 Default \code{FALSE}.}
+
+\item{p.method}{Character; permutation pseudo p-value method, \code{"count"}
+(default) or \code{"rank"}. \code{"count"} counts permutations at least as
+extreme as the observed value; \code{"rank"} uses \pkg{spdep}'s ties-averaged
+rank of the observed value. Both return a folded (smaller-tail) value.}
 }
 \value{
 A numeric matrix of class \code{c("localG", "matrix", "array")}

@@ -9,7 +9,7 @@ PKG_LIBS    = $(SHLIB_OPENMP_CFLAGS)
 #   rng.c               – xoshiro256++ RNG
 #   workspace.c         – per-thread permutation workspace (single allocation)
 # Pure-C computation kernels (no SEXP):
-#   bimoran.c
+#   localbimoran.c
 #   localgeary.c
 #   localmultigeary.c
 #   localg.c
@@ -19,7 +19,7 @@ PKG_LIBS    = $(SHLIB_OPENMP_CFLAGS)
 # Registration:
 #   init.c
 SOURCES = rng.c workspace.c \
-          bimoran.c localgeary.c localmultigeary.c \
+          localbimoran.c localgeary.c localmultigeary.c \
           localg.c localgstar.c \
           R_export.c \
           init.c

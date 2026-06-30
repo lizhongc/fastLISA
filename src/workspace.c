@@ -21,7 +21,8 @@ int perm_ws_alloc(perm_ws *ws, int n, int permutations)
     size_t bytes = (size_t)permutations * sizeof(double) + (size_t)n * sizeof(double) + (size_t)n * sizeof(int);
 
     char *block = (char *)malloc(bytes);
-    if (!block) {
+    if (!block)
+    {
         ws->block     = NULL;
         ws->perm_vals = NULL;
         ws->w_valid   = NULL;

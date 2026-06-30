@@ -38,7 +38,8 @@ local_geary <- function(x, listw,
                         iseed   = NULL,
                         p.value = 0.05,
                         n.cores = 1L,
-                        moments = FALSE) {
+                        moments = FALSE,
+                        p.method = c("count", "rank")) {
 
   ## ------------------------------------------------------------------ ##
   ## 1. Input validation                                                ##
@@ -52,10 +53,11 @@ local_geary <- function(x, listw,
   if (length(x) != n)
     stop("Length of 'x' does not match number of observations in 'listw'.")
 
-  n.cores <- max(1L,as.integer(n.cores))
-  p.value <- as.double(p.value)
-  seed    <- if (is.null(iseed)) 123456789.0 else as.double(iseed)
-  nsim    <- as.integer(nsim)
+  n.cores  <- max(1L,as.integer(n.cores))
+  p.value  <- as.double(p.value)
+  p.method <- match.arg(p.method)
+  seed     <- if (is.null(iseed)) 123456789.0 else as.double(iseed)
+  nsim     <- as.integer(nsim)
   if (nsim < 1L) {
     stop("nsim must be at least 1.")
   }
@@ -91,7 +93,8 @@ local_geary <- function(x, listw,
     nsim,
     seed,
     n.cores,
-    p.value
+    p.value,
+    p.method == "rank"
   )
   obs_geary <- raw$geary
   p_sim     <- raw$p_val

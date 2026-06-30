@@ -47,7 +47,8 @@ int      rng_int(uint64_t [4], int);
  *   not R_Calloc, because the workspace is allocated inside OpenMP regions
  *   where R_Calloc is not thread-safe.
  * --------------------------------------------------------------------- */
-typedef struct {
+typedef struct
+{
     int    *draw;       /* candidate neighbour indices (len n)            */
     double *w_valid;    /* neighbour weights for current obs (len n)      */
     double *perm_vals;  /* permuted statistics (len permutations)         */
@@ -65,29 +66,29 @@ void perm_ws_free(perm_ws *);
  * call these, then pack the results back into R lists.
  * --------------------------------------------------------------------- */
 
-/* bimoran.c */
+/* localbimoran.c */
 void compute_bimoran(int, const int *, const int *, const double *, const double *, const double *, const int *, double *, double *, int *, int);
 
-void compute_bimoran_pvalues(int, const int *, const int *, const double *, const double *, const double *, const int *, const double *, int, uint64_t, int, double *, double *, double *, double *, double *);
+void compute_bimoran_pvalues(int, const int *, const int *, const double *, const double *, const double *, const int *, const double *, int, uint64_t, int, int, double *, double *, double *, double *, double *);
 
 /* localgeary.c */
-void compute_localgeary(int, const int *, const int *, const double *, const double *, const double *, const int *, double *, int *, int);
+void compute_localgeary(int, const int *, const int *, const double *, const double *, const int *, double *, int *, int);
 
-void compute_localgeary_pvalues(int, const int *, const int *, const double *, const double *, const double *, const int *, const double *, int, uint64_t, int, double *, double *, double *, int *, double *, double *);
+void compute_localgeary_pvalues(int, const int *, const int *, const double *, const double *, const int *, const double *, int, uint64_t, int, int, double *, double *, double *, int *, double *, double *);
 
 /* localmultigeary.c */
-void compute_localmultigeary(int, int, const int *, const int *, const double *, double **, double **, const int *, double *, int *, int);
+void compute_localmultigeary(int, int, const int *, const int *, const double *, double **, const int *, double *, int *, int);
 
-void compute_localmultigeary_pvalues(int, int, const int *, const int *, const double *, double **, double **, const int *, const double *, int, uint64_t, int, double *, double *, double *, int *, double *, double *);
+void compute_localmultigeary_pvalues(int, int, const int *, const int *, const double *, double **, const int *, const double *, int, uint64_t, int, int, double *, double *, double *, int *, double *, double *);
 
 /* localg.c */
-void compute_localg(int, const int *, const int *, const double *, const double *, const int *, double, double *, int *, int *, int);
+void compute_localg(int, const int *, const int *, const double *, const double *, const int *, double *, int *, int);
 
-void compute_localg_pvalues(int, const int *, const int *, const double *, const double *, const int *, const double *, const int *, double, int, uint64_t, int, double *, double *, double *, double *, double *);
+void compute_localg_pvalues(int, const int *, const int *, const double *, const double *, const int *, const double *, int, uint64_t, int, int, double *, double *, double *, double *, double *);
 
 /* localgstar.c */
-void compute_localgstar(int, const int *, const int *, const double *, const double *, const int *, double, double *, int *, int);
+void compute_localgstar(int, const int *, const int *, const double *, const double *, const int *, double *, int *, int);
 
-void compute_localgstar_pvalues(int, const int *, const int *, const double *, const double *, const int *, const double *, double, int, uint64_t, int, double *, double *, double *, double *, double *);
+void compute_localgstar_pvalues(int, const int *, const int *, const double *, const double *, const int *, const double *, int, uint64_t, int, int, double *, double *, double *, double *, double *);
 
 #endif /* FASTLISA_H */

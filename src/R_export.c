@@ -5,7 +5,7 @@
  * (compute_*.c) -> packs the results into an R named list.  The shims are
  * deliberately thin: no numerics live here.
  *
- *   r_bi_localmoran    -> bimoran.c
+ *   r_bi_localmoran    -> localbimoran.c
  *   r_localgeary       -> localgeary.c
  *   r_localmultigeary  -> localmultigeary.c
  *   r_localg           -> localg.c
@@ -30,7 +30,7 @@ static void nan_to_na(double *x, int n)
 /* ==================================================================
  * Bivariate Local Moran's I
  * ================================================================== */
-SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data1, SEXP r_data2, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff)
+SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data1, SEXP r_data2, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval)
 {
     /* --- Unpack scalars ------------------------------------------------- */
     int      n            = length(r_data1);
@@ -38,6 +38,7 @@ SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data
     uint64_t seed         = (uint64_t)REAL(r_seed)[0];
     int      n_threads    = INTEGER(r_n_threads)[0];
     double   cutoff       = REAL(r_sig_cutoff)[0];
+    int      rank_pval    = (asLogical(r_rank_pval) == TRUE);
     if (seed == 0)
         seed = 123456789ULL;
     if (n_threads < 1)
@@ -68,12 +69,15 @@ SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data
     /* --- Dispatch to pure-C kernels -------------------------------------- */
     compute_bimoran(n, row_ptr, col_idx, weights, z1, z2, undef, REAL(r_bimoran), REAL(r_splag), INTEGER(r_cluster), n_threads);
 
-    compute_bimoran_pvalues(n, row_ptr, col_idx, weights, z1, z2, undef, REAL(r_bimoran), permutations, seed, n_threads, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
+    compute_bimoran_pvalues(n, row_ptr, col_idx, weights, z1, z2, undef, REAL(r_bimoran), permutations, seed, n_threads, rank_pval, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
 
     /* --- Apply significance cutoff -------------------------------------- */
-    for (int i = 0; i < n; i++) {
-        if (INTEGER(r_cluster)[i] >= CLUSTER_HH && INTEGER(r_cluster)[i] <= CLUSTER_HL) {
-            if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff) {
+    for (int i = 0; i < n; i++)
+    {
+        if (INTEGER(r_cluster)[i] >= CLUSTER_HH && INTEGER(r_cluster)[i] <= CLUSTER_HL)
+        {
+            if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff)
+            {
                 INTEGER(r_cluster)[i] = CLUSTER_NOT_SIG;
             }
         }
@@ -113,7 +117,7 @@ SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data
 /* ==================================================================
  * Univariate Local Geary's C
  * ================================================================== */
-SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff)
+SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval)
 {
     /* --- Unpack scalars ------------------------------------------------- */
     int      n            = length(r_data);
@@ -121,6 +125,7 @@ SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     uint64_t seed         = (uint64_t)REAL(r_seed)[0];
     int      n_threads    = INTEGER(r_n_threads)[0];
     double   cutoff       = REAL(r_sig_cutoff)[0];
+    int      rank_pval    = (asLogical(r_rank_pval) == TRUE);
     if (seed == 0)
         seed = 123456789ULL;
     if (n_threads < 1)
@@ -132,12 +137,8 @@ SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     double *weights = REAL(r_weights);
     int    *undef   = INTEGER(r_undef);
 
-    /* --- Data prepared by R (alias) + computed squares ------------------ */
+    /* --- Data prepared by R (alias) ------------------------------------- */
     const double *z = REAL(r_data);
-
-    double *z_sq = R_Calloc(n, double);
-    for (int i = 0; i < n; i++)
-        z_sq[i] = z[i] * z[i];
 
     /* --- Allocate R result vectors (kernels write straight into them) --- */
     SEXP out       = PROTECT(allocVector(VECSXP,  7));
@@ -151,15 +152,15 @@ SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     SEXP r_cluster = PROTECT(allocVector(INTSXP,  n));
 
     /* --- Dispatch to pure-C kernels -------------------------------------- */
-    compute_localgeary(n, row_ptr, col_idx, weights, z, z_sq, undef, REAL(r_geary), INTEGER(r_cluster), n_threads);
+    compute_localgeary(n, row_ptr, col_idx, weights, z, undef, REAL(r_geary), INTEGER(r_cluster), n_threads);
 
-    compute_localgeary_pvalues(n, row_ptr, col_idx, weights, z, z_sq, undef, REAL(r_geary), permutations, seed, n_threads, REAL(r_pval), REAL(r_mean), REAL(r_var), INTEGER(r_cluster), REAL(r_skew), REAL(r_kurt));
-
-    R_Free(z_sq);
+    compute_localgeary_pvalues(n, row_ptr, col_idx, weights, z, undef, REAL(r_geary), permutations, seed, n_threads, rank_pval, REAL(r_pval), REAL(r_mean), REAL(r_var), INTEGER(r_cluster), REAL(r_skew), REAL(r_kurt));
 
     /* --- Apply significance cutoff -------------------------------------- */
-    for (int i = 0; i < n; i++) {
-        if (INTEGER(r_cluster)[i] >= CLUSTER_HH && INTEGER(r_cluster)[i] <= CLUSTER_HL) {
+    for (int i = 0; i < n; i++)
+    {
+        if (INTEGER(r_cluster)[i] >= CLUSTER_HH && INTEGER(r_cluster)[i] <= CLUSTER_HL)
+        {
             if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff)
                 INTEGER(r_cluster)[i] = CLUSTER_NOT_SIG;
         }
@@ -197,7 +198,7 @@ SEXP r_localgeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
 /* ==================================================================
  * Multivariate Local Geary's C
  * ================================================================== */
-SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data_list, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff)
+SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data_list, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval)
 {
     /* --- Unpack scalars ------------------------------------------------- */
     int      n            = length(r_undef);
@@ -206,6 +207,7 @@ SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_da
     uint64_t seed         = (uint64_t)REAL(r_seed)[0];
     int      n_threads    = INTEGER(r_n_threads)[0];
     double   cutoff       = REAL(r_sig_cutoff)[0];
+    int      rank_pval    = (asLogical(r_rank_pval) == TRUE);
     if (seed == 0)
         seed = 123456789ULL;
     if (n_threads < 1)
@@ -217,14 +219,11 @@ SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_da
     double *weights = REAL(r_weights);
     int    *undef   = INTEGER(r_undef);
 
-    /* --- Variables prepared by R (alias) + computed squares ------------- */
-    double **z    = R_Calloc(num_vars, double*);
-    double **z_sq = R_Calloc(num_vars, double*);
-    for (int v = 0; v < num_vars; v++) {
-        z[v]    = REAL(VECTOR_ELT(r_data_list, v));
-        z_sq[v] = R_Calloc(n, double);
-        for (int i = 0; i < n; i++)
-            z_sq[v][i] = z[v][i] * z[v][i];
+    /* --- Variables prepared by R: gather the per-variable pointers ------ */
+    double **z = R_Calloc(num_vars, double*);
+    for (int v = 0; v < num_vars; v++)
+    {
+        z[v] = REAL(VECTOR_ELT(r_data_list, v));
     }
 
     /* --- Allocate R result vectors (kernels write straight into them) --- */
@@ -239,18 +238,17 @@ SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_da
     SEXP r_cluster = PROTECT(allocVector(INTSXP,  n));
 
     /* --- Dispatch to pure-C kernels -------------------------------------- */
-    compute_localmultigeary(n, num_vars, row_ptr, col_idx, weights, z, z_sq, undef, REAL(r_geary), INTEGER(r_cluster), n_threads);
+    compute_localmultigeary(n, num_vars, row_ptr, col_idx, weights, z, undef, REAL(r_geary), INTEGER(r_cluster), n_threads);
 
-    compute_localmultigeary_pvalues(n, num_vars, row_ptr, col_idx, weights, z, z_sq, undef, REAL(r_geary), permutations, seed, n_threads, REAL(r_pval), REAL(r_mean), REAL(r_var), INTEGER(r_cluster), REAL(r_skew), REAL(r_kurt));
+    compute_localmultigeary_pvalues(n, num_vars, row_ptr, col_idx, weights, z, undef, REAL(r_geary), permutations, seed, n_threads, rank_pval, REAL(r_pval), REAL(r_mean), REAL(r_var), INTEGER(r_cluster), REAL(r_skew), REAL(r_kurt));
 
-    for (int v = 0; v < num_vars; v++)
-        R_Free(z_sq[v]);
     R_Free(z);
-    R_Free(z_sq);
 
     /* --- Apply significance cutoff -------------------------------------- */
-    for (int i = 0; i < n; i++) {
-        if (INTEGER(r_cluster)[i] == MG_CLUSTER_POSITIVE || INTEGER(r_cluster)[i] == MG_CLUSTER_NEGATIVE) {
+    for (int i = 0; i < n; i++)
+    {
+        if (INTEGER(r_cluster)[i] == MG_CLUSTER_POSITIVE || INTEGER(r_cluster)[i] == MG_CLUSTER_NEGATIVE)
+        {
             if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff)
                 INTEGER(r_cluster)[i] = MG_CLUSTER_NOT_SIG;
         }
@@ -288,7 +286,7 @@ SEXP r_localmultigeary(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_da
 /* ==================================================================
  * Local Getis-Ord G
  * ================================================================== */
-SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff)
+SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval)
 {
     /* --- Unpack scalars ------------------------------------------------- */
     int      n            = length(r_data);
@@ -296,6 +294,7 @@ SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP 
     uint64_t seed         = (uint64_t)REAL(r_seed)[0];
     int      n_threads    = INTEGER(r_n_threads)[0];
     double   cutoff       = REAL(r_sig_cutoff)[0];
+    int      rank_pval    = (asLogical(r_rank_pval) == TRUE);
     if (seed == 0)
         seed = 123456789ULL;
     if (n_threads < 1)
@@ -310,14 +309,6 @@ SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP 
     /* --- Data prepared by R (NA already set to 0); alias --------------- */
     const double *z = REAL(r_data);
 
-    double sum_x = 0.0;
-    for (int i = 0; i < n; i++) {
-        if (!undef[i])
-            sum_x += z[i];
-    }
-
-    int *g_defined = R_Calloc(n, int);  /* internal flag, not returned */
-
     /* --- Allocate R result vectors (kernels write straight into them) --- */
     SEXP out       = PROTECT(allocVector(VECSXP,  7));
     SEXP names     = PROTECT(allocVector(STRSXP,  7));
@@ -330,15 +321,15 @@ SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP 
     SEXP r_cluster = PROTECT(allocVector(INTSXP,  n));
 
     /* --- Dispatch to pure-C kernels -------------------------------------- */
-    compute_localg(n, row_ptr, col_idx, weights, z, undef, sum_x, REAL(r_gval), g_defined, INTEGER(r_cluster), n_threads);
+    compute_localg(n, row_ptr, col_idx, weights, z, undef, REAL(r_gval), INTEGER(r_cluster), n_threads);
 
-    compute_localg_pvalues(n, row_ptr, col_idx, weights, z, undef, REAL(r_gval), g_defined, sum_x, permutations, seed, n_threads, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
-
-    R_Free(g_defined);
+    compute_localg_pvalues(n, row_ptr, col_idx, weights, z, undef, REAL(r_gval), permutations, seed, n_threads, rank_pval, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
 
     /* --- Apply significance cutoff -------------------------------------- */
-    for (int i = 0; i < n; i++) {
-        if (INTEGER(r_cluster)[i] == G_CLUSTER_HH || INTEGER(r_cluster)[i] == G_CLUSTER_LL) {
+    for (int i = 0; i < n; i++)
+    {
+        if (INTEGER(r_cluster)[i] == G_CLUSTER_HH || INTEGER(r_cluster)[i] == G_CLUSTER_LL)
+        {
             if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff)
                 INTEGER(r_cluster)[i] = G_CLUSTER_NOT_SIG;
         }
@@ -376,7 +367,7 @@ SEXP r_localg(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP 
 /* ==================================================================
  * Local Getis-Ord G*
  * ================================================================== */
-SEXP r_localgstar(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff)
+SEXP r_localgstar(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval)
 {
     /* --- Unpack scalars ------------------------------------------------- */
     int      n            = length(r_data);
@@ -384,6 +375,7 @@ SEXP r_localgstar(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     uint64_t seed         = (uint64_t)REAL(r_seed)[0];
     int      n_threads    = INTEGER(r_n_threads)[0];
     double   cutoff       = REAL(r_sig_cutoff)[0];
+    int      rank_pval    = (asLogical(r_rank_pval) == TRUE);
     if (seed == 0)
         seed = 123456789ULL;
     if (n_threads < 1)
@@ -398,12 +390,6 @@ SEXP r_localgstar(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     /* --- Data prepared by R (NA already set to 0); alias --------------- */
     const double *z = REAL(r_data);
 
-    double sum_x = 0.0;
-    for (int i = 0; i < n; i++) {
-        if (!undef[i])
-            sum_x += z[i];
-    }
-
     /* --- Allocate R result vectors (kernels write straight into them) --- */
     SEXP out       = PROTECT(allocVector(VECSXP,  7));
     SEXP names     = PROTECT(allocVector(STRSXP,  7));
@@ -415,26 +401,16 @@ SEXP r_localgstar(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data, S
     SEXP r_kurt    = PROTECT(allocVector(REALSXP, n));
     SEXP r_cluster = PROTECT(allocVector(INTSXP,  n));
 
-    /* --- Dispatch to pure-C kernels -------------------------------------- */
-    compute_localgstar(n, row_ptr, col_idx, weights, z, undef, sum_x, REAL(r_gstar), INTEGER(r_cluster), n_threads);
+    /* --- Dispatch to pure-C kernels (kernels handle sum_x == 0) --------- */
+    compute_localgstar(n, row_ptr, col_idx, weights, z, undef, REAL(r_gstar), INTEGER(r_cluster), n_threads);
 
-    /* If sum_x == 0.0, the compute function already set all to Undefined */
-    if (sum_x != 0.0) {
-        compute_localgstar_pvalues(n, row_ptr, col_idx, weights, z, undef, REAL(r_gstar), sum_x, permutations, seed, n_threads, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
-    } else {
-        /* All undefined — fill moments with NA */
-        for (int i = 0; i < n; i++) {
-            REAL(r_pval)[i] = NA_REAL;
-            REAL(r_mean)[i] = NA_REAL;
-            REAL(r_var)[i]  = NA_REAL;
-            REAL(r_skew)[i] = NA_REAL;
-            REAL(r_kurt)[i] = NA_REAL;
-        }
-    }
+    compute_localgstar_pvalues(n, row_ptr, col_idx, weights, z, undef, REAL(r_gstar), permutations, seed, n_threads, rank_pval, REAL(r_pval), REAL(r_mean), REAL(r_var), REAL(r_skew), REAL(r_kurt));
 
     /* --- Apply significance cutoff -------------------------------------- */
-    for (int i = 0; i < n; i++) {
-        if (INTEGER(r_cluster)[i] == G_CLUSTER_HH || INTEGER(r_cluster)[i] == G_CLUSTER_LL) {
+    for (int i = 0; i < n; i++)
+    {
+        if (INTEGER(r_cluster)[i] == G_CLUSTER_HH || INTEGER(r_cluster)[i] == G_CLUSTER_LL)
+        {
             if (ISNAN(REAL(r_pval)[i]) || REAL(r_pval)[i] > cutoff)
                 INTEGER(r_cluster)[i] = G_CLUSTER_NOT_SIG;
         }

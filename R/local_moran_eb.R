@@ -32,7 +32,8 @@ local_moran_eb <- function(event, base, listw,
                            iseed   = NULL,
                            p.value = 0.05,
                            n.cores = 1L,
-                           moments = FALSE) 
+                           moments = FALSE,
+                           p.method = c("count", "rank"))
 {
   # Input sanity checks
   if (!is.numeric(event)) stop("'event' must be a numeric vector.")
@@ -59,7 +60,8 @@ local_moran_eb <- function(event, base, listw,
                        scale = TRUE, iseed = iseed,
                        p.value = p.value,
                        n.cores = n.cores,
-                       moments = moments)
+                       moments = moments,
+                       p.method = match.arg(p.method))
 
   # Step 3: Identify isolates and undefined units.
   # Isolate: node with 0 neighbors.
