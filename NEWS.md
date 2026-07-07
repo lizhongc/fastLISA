@@ -1,3 +1,11 @@
+# fastLISA 1.0.1
+
+* Vignette: corrected the "Reproducibility" note, which incorrectly stated that
+  multi-core permutation results "may differ between runs". Permutation inference
+  is thread-invariant: because the RNG is re-seeded per observation from `iseed`
+  and the observation index alone, the pseudo-p-values and z-scores are
+  bit-for-bit identical for any `n.cores` and under any OpenMP schedule.
+
 # fastLISA 1.0.0
 
 * First release.
@@ -16,9 +24,10 @@
   permutation-moment columns.
 * Folded pseudo-p-values are returned for Moran, G, and G* statistics;
   Geary statistics return tail-adaptive pseudo-p-values.
-* `p.method` selects the permutation pseudo-p-value method: `"count"` (default)
-  counts permutations at least as extreme as the observed value, while `"rank"`
-  uses `spdep`'s ties-averaged rank. Both return a folded (smaller-tail) value.
+* `p.method` selects the permutation pseudo-p-value rule: the standard `"count"`
+  (default) counts permutations at least as extreme as the observed value, while
+  `"rank"` uses `spdep`'s ties-averaged rank. The two differ only under exact
+  ties; both return a folded (smaller-tail) value.
 * Cluster codes follow `rgeoda` conventions, including an `Isolated` category
   for observations with no neighbours.
 * `n.cores` defaults to `1L`; raise it to use multiple OpenMP threads.

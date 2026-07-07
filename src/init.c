@@ -7,9 +7,8 @@
  * lives in the per-statistic kernels (localbimoran.c, localgeary.c, ...); the
  * SEXP shims are all defined together in R_export.c.
  */
-#include <Rinternals.h>
+#include "fastLISA.h"        /* first: pulls omp.h before R's Rinternals.h remap macros */
 #include <R_ext/Rdynload.h>
-#include "fastLISA.h"
 
 /* Forward-declare every SEXP entry point (defined in R_export.c) */
 SEXP r_bi_localmoran(SEXP r_row_ptr, SEXP r_col_idx, SEXP r_weights, SEXP r_data1, SEXP r_data2, SEXP r_undef, SEXP r_permutations, SEXP r_seed, SEXP r_n_threads, SEXP r_sig_cutoff, SEXP r_rank_pval);

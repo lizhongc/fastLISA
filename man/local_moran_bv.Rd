@@ -46,10 +46,13 @@ set higher to use multiple cores. Ignored on platforms without OpenMP.}
 moments \code{E.Ibvi}, \code{Var.Ibvi}, \code{Skew.Ibvi}, and
 \code{Kurt.Ibvi} to the result matrix. Default \code{FALSE}.}
 
-\item{p.method}{Character; permutation pseudo p-value method, \code{"count"}
-(default) or \code{"rank"}. \code{"count"} counts permutations at least as
-extreme as the observed value; \code{"rank"} uses \pkg{spdep}'s ties-averaged
-rank of the observed value. Both return a folded (smaller-tail) value.}
+\item{p.method}{Character; how the observed statistic is located within its
+permutation distribution. \code{"count"} (default) is the standard rule: it
+counts the permutations at least as extreme as the observed value, matching the
+folded pseudo p-value reported by \pkg{rgeoda} and \pkg{spdep}. \code{"rank"} is
+the ties-averaged alternative, using \pkg{spdep}'s averaged rank of the observed
+value. The two differ only when a permuted value exactly ties the observed one
+(discrete or tie-prone data); both return a folded (smaller-tail) value.}
 }
 \value{
 A numeric matrix of class \code{c("localmoran", "matrix", "array")}

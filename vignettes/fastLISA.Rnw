@@ -123,9 +123,11 @@ head(gs)
     to its permutation mean.
   \item \textbf{Isolates.} Observations with no neighbours are assigned the
     \emph{Isolated} cluster code regardless of the significance cutoff.
-  \item \textbf{Reproducibility.} Supplying \texttt{iseed} with
-    \texttt{n.cores = 1L} makes permutation inference reproducible. Dynamic
-    scheduling means multi-core permutation results may differ between runs.
+  \item \textbf{Reproducibility.} Supplying \texttt{iseed} makes permutation
+    inference fully reproducible. Each observation's permutation stream is seeded
+    from \texttt{iseed} and the observation index alone --- not from the thread
+    that processes it --- so the pseudo $p$-values and $z$-scores are bit-for-bit
+    identical for any value of \texttt{n.cores} and under any OpenMP schedule.
 \end{itemize}
 
 \end{document}

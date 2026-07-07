@@ -26,6 +26,8 @@
 #   p.value  significance cutoff used to filter the cluster factor (default 0.05).
 #   n.cores  number of OpenMP threads (default 1L).
 #   moments  logical; if TRUE append E.Gi, Var.Gi, Skew.Gi, Kurt.Gi.
+#   p.method pseudo p-value rule: "count" (default, standard) or "rank"
+#            (spdep ties-averaged). The two differ only under exact ties.
 #
 # Output: numeric matrix of class c("localG", "matrix", "array"), n rows, columns
 #   Gi, Z.Gi, "Pr(folded) Sim" (plus the four moment columns when moments = TRUE).

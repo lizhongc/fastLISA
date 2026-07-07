@@ -27,6 +27,8 @@
 #   p.value  cluster significance cutoff (default 0.05).
 #   n.cores  number of OpenMP threads (default 1L).
 #   moments  logical; if TRUE append E.Ibvi, Var.Ibvi, Skew.Ibvi, Kurt.Ibvi.
+#   p.method pseudo p-value rule: "count" (default, standard) or "rank"
+#            (spdep ties-averaged). The two differ only under exact ties.
 #
 # Output: numeric matrix of class c("localmoran", "matrix", "array"); columns
 #   Ibvi, Z.Ibvi, "Pr(folded) Sim" (+ moment columns when moments = TRUE).

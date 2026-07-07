@@ -13,7 +13,8 @@
 # NA->Undefined / neighbourless->Isolated handling, and per-observation RNG
 # seeding (results identical for any n.cores) are all as in local_g.
 #
-# Inputs: as local_g (x, listw, nsim, iseed, p.value, n.cores, moments).
+# Inputs: as local_g (x, listw, nsim, iseed, p.value, n.cores, moments), plus
+#   p.method (pseudo p-value rule: "count" default/standard or "rank" ties-averaged).
 # Output: numeric matrix of class c("localG", "matrix", "array"); columns G*i,
 #   Z.G*i, "Pr(folded) Sim" (+ E.G*i, Var.G*i, Skew.G*i, Kurt.G*i when
 #   moments = TRUE). Attributes: cluster (Not significant / High-High / Low-Low /

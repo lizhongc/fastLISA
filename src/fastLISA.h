@@ -2,12 +2,16 @@
 #define FASTLISA_H
 
 #include <stdint.h>
-#include <R.h>
-#include <Rinternals.h>
 
+/* omp.h MUST be included before R's headers: Rinternals.h defines the remap
+ * macro `match` (-> Rf_match), which otherwise corrupts omp.h's
+ * `#pragma omp begin declare variant match(...)` clause under clang. */
 #ifdef _OPENMP
   #include <omp.h>
 #endif
+
+#include <R.h>
+#include <Rinternals.h>
 
 /* Cluster codes */
 #define CLUSTER_NOT_SIG      0

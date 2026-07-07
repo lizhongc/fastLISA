@@ -22,6 +22,7 @@
 #   base     numeric vector of populations at risk, length n.
 #   listw    spdep 'listw' spatial weights.
 #   nsim, iseed, p.value, n.cores, moments  as in local_moran.
+#   p.method pseudo p-value rule: "count" (default, standard) or "rank" ties-averaged.
 #
 # Output: numeric matrix of class c("local_moran_eb", "matrix"); columns Ii,
 #   Z.Ii, "Pr(folded) Sim" (+ E.Ii/Var.Ii/Skew.Ii/Kurt.Ii when moments = TRUE).

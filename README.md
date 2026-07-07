@@ -25,8 +25,9 @@ The two established R tools force a trade-off:
 
 * **Honours custom weight values.** It uses the actual `listw` weights, so
   distance-decay and other non-binary schemes are respected (unlike rgeoda).
-* **Fast.** OpenMP-parallelised C kernels are one to two orders of magnitude
-  faster than spdep and competitive with rgeoda at equal thread counts.
+* **Fast.** At equal thread counts, the OpenMP-parallelised C kernels run about
+  2.5× faster than the compiled peer rgeoda, and roughly 8–10× faster than spdep,
+  whose permutation loops run largely in R.
 * **Reproducible at any thread count.** The permutation RNG is re-seeded per
   observation, so for a fixed `iseed` the pseudo-p-values are identical
   regardless of `n.cores` — a guarantee neither spdep nor rgeoda offers.
@@ -103,8 +104,8 @@ res_exp <- local_g(x, lw_exp, nsim = 999L, iseed = 1L)
 All functions share the same interface: `nsim` permutations, an optional integer
 `iseed` for reproducibility, a significance cutoff `p.value`, `n.cores`
 (default `1L`; raise it to use multiple OpenMP threads), and `p.method` to choose
-the pseudo-p-value method — `"count"` (default) or `spdep`'s ties-averaged
-`"rank"`.
+the pseudo-p-value rule — the standard `"count"` (default), or `spdep`'s
+ties-averaged `"rank"`, which differ only under exact ties.
 
 ## Reproducibility
 

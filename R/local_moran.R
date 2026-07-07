@@ -14,7 +14,8 @@
 # NA->Undefined / neighbourless->Isolated handling, and per-observation RNG
 # seeding (identical for any n.cores) are all as in local_moran_bv.
 #
-# Inputs: x (numeric n), listw, nsim, iseed, p.value, n.cores, moments.
+# Inputs: x (numeric n), listw, nsim, iseed, p.value, n.cores, moments, and
+#   p.method (pseudo p-value rule: "count" default/standard, or "rank" ties-averaged).
 # Output: numeric matrix of class c("localmoran", "matrix", "array"); columns Ii,
 #   Z.Ii, "Pr(folded) Sim" (+ moment columns when moments = TRUE). Attributes:
 #   quadr (Moran-scatterplot quadrants), cluster (Not significant / High-High /
