@@ -16,6 +16,8 @@ Description: Computes various Local Indicators of Spatial Association (LISA)
     'rgeoda'-style permutation p-values. Output cluster codes match 'rgeoda'
     conventions, including the Isolated category for observations without
     neighbours.
+URL: https://github.com/lizhongc/fastLISA
+BugReports: https://github.com/lizhongc/fastLISA/issues
 License: GPL-3
 Encoding: UTF-8
 Imports: stats
